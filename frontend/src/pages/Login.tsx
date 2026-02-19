@@ -55,6 +55,7 @@ const Login: React.FC = () => {
                                 icon={User}
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
+                                autoComplete="username"
                                 className="!rounded-lg !bg-white border-gray-200 focus:!border-primary py-2.5 text-sm"
                                 required
                             />
@@ -66,6 +67,7 @@ const Login: React.FC = () => {
                                 icon={Lock}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                autoComplete="current-password"
                                 className="!rounded-lg !bg-white border-gray-200 focus:!border-primary py-2.5 text-sm"
                                 required
                             />
