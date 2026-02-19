@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-    baseURL: 'http://13.63.57.2:8083/api',
+    baseURL: 'https://task-floww.seedhr.com.tr/api',
 });
 
 // For development, we'll stop using JWT tokens as requested.

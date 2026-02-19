@@ -26,6 +26,6 @@ docker image prune -f
 
 echo "------------------------------------------"
 echo "✅ Dağıtım başarıyla tamamlandı!"
-echo "🌐 Backend: http://13.63.57.2:8083"
+echo "🌐 Backend: https://task-floww.seedhr.com.tr"
 echo "📜 Logları izlemek için: docker-compose logs -f backend"
 echo "------------------------------------------"
