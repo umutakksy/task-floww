@@ -53,7 +53,7 @@ export const Dashboard: React.FC = () => {
                 initial={{ x: -260 }}
                 animate={{ x: 0 }}
                 transition={{ type: 'spring', damping: 20 }}
-                className="w-[260px] h-full glass border-r z-50 flex flex-col"
+                className="w-[320px] h-full glass border-r z-50 flex flex-col"
             >
                 <div className="p-4">
                     <div className="flex items-center gap-3 mb-8 group cursor-pointer px-2">
@@ -61,7 +61,7 @@ export const Dashboard: React.FC = () => {
                             <Sparkles size={18} className="text-white fill-white/20" />
                         </div>
                         <div>
-                            <h1 className="text-sm font-bold tracking-tight text-gray-800 leading-tight">Task Module</h1>
+                            <h1 className="text-sm font-bold tracking-tight text-gray-800 leading-tight">İşmer Proje Yönetim</h1>
                         </div>
                     </div>
 

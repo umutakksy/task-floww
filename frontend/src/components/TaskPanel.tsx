@@ -4,7 +4,7 @@ import type { Task, TaskStatus, Priority } from '../types';
 import { useTaskStore } from '../store/useTaskStore';
 import {
     Plus, Search, ChevronDown, Trash2,
-    User, CheckCircle2, AlertCircle, Clock
+    User, CheckCircle2, AlertCircle, Clock, ChevronRight
 } from 'lucide-react';
 import { TaskDetailDrawer } from './TaskDetailDrawer';
 import { CreateTaskModal } from './CreateTaskModal';
@@ -199,12 +199,17 @@ const formatDate = (dateStr?: string) => {
 
 const TaskRow: React.FC<{
     task: Task;
+    isSubTask?: boolean;
     onStatusChange: (s: TaskStatus) => void;
     onPriorityChange: (p: Priority) => void;
     onAssigneeToggle: (userId: string) => void;
     onDelete: () => void;
     onClick: () => void;
-}> = ({ task, onStatusChange, onPriorityChange, onAssigneeToggle, onDelete, onClick }) => {
+    onAddSubTask: () => void;
+    isExpanded?: boolean;
+    onToggleExpand?: () => void;
+    hasSubTasks?: boolean;
+}> = ({ task, isSubTask, onStatusChange, onPriorityChange, onAssigneeToggle, onDelete, onClick, onAddSubTask, isExpanded, onToggleExpand, hasSubTasks }) => {
     const { users } = useTaskStore();
     const creator = users.find(u => u.id === task.creatorId);
 
@@ -222,11 +227,24 @@ const TaskRow: React.FC<{
             </td>
 
             {/* Görev Başlığı */}
-            <td className="px-2 py-3 min-w-[300px]">
-                <div className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full" style={{ background: STATUS_CONFIG[task.status].bg }} />
+            <td className={`px-2 py-3 min-w-[300px] ${isSubTask ? 'pl-10' : ''}`}>
+                <div className="flex items-center gap-1">
+                    {!isSubTask && (
+                        <div
+                            onClick={(e) => { e.stopPropagation(); onToggleExpand?.(); }}
+                            className={`p-1 hover:bg-black/5 rounded cursor-pointer transition-all ${hasSubTasks ? 'opacity-100' : 'opacity-50'}`}
+                        >
+                            <ChevronRight
+                                size={16}
+                                className={`text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                strokeWidth={2.5}
+                            />
+                        </div>
+                    )}
+                    {isSubTask && <div className="w-5 h-[1px] bg-gray-200 mr-2" />}
+                    <div className="w-2 h-2 rounded-full flex-shrink-0 mr-2" style={{ background: STATUS_CONFIG[task.status].bg }} />
                     <div className="flex flex-col">
-                        <span className="text-[13px] font-semibold text-gray-700 group-hover/row:text-primary transition-colors">
+                        <span className={`text-[13px] text-gray-700 group-hover/row:text-primary transition-colors ${isSubTask ? 'font-medium' : 'font-semibold'}`}>
                             {task.title}
                         </span>
                         {task.description && (
@@ -273,19 +291,38 @@ const TaskRow: React.FC<{
                 <TimelineBar start={task.startDate} end={task.endDate} color={STATUS_CONFIG[task.status].bg} />
             </td>
 
-            {/* Son Güncelleme */}
-            <td className="w-44 border-l border-white px-3 text-center">
-                <span className="text-[11px] text-gray-400 font-medium">
-                    {task.updatedAt ? new Date(task.updatedAt).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                </span>
+            {/* İlerleme */}
+            <td className="w-32 border-l border-white px-3 text-center">
+                <div className="flex flex-col gap-1 items-center">
+                    <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-[80px]">
+                        <div
+                            className="h-full rounded-full transition-all duration-300"
+                            style={{
+                                width: `${task.progress}%`,
+                                background: task.progress < 30 ? '#ff3d57' : task.progress < 70 ? '#ffcb00' : '#00c875'
+                            }}
+                        />
+                    </div>
+                    <span className="text-[12px] font-bold text-gray-700">%{task.progress}</span>
+                </div>
             </td>
 
             {/* Actions */}
             <td className="w-10 border-l border-white pr-2">
-                <div className="flex items-center justify-center opacity-0 group-hover/row:opacity-100 transition-opacity">
+                <div className="flex items-center justify-center gap-1 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                    {!isSubTask && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onAddSubTask(); }}
+                            className="p-1 text-gray-300 hover:text-primary"
+                            title="Alt Görev Ekle"
+                        >
+                            <Plus size={14} />
+                        </button>
+                    )}
                     <button
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
                         className="p-1 text-gray-300 hover:text-red-500"
+                        title="Sil"
                     >
                         <Trash2 size={14} />
                     </button>
@@ -301,6 +338,17 @@ export const TaskPanel: React.FC<{ folderId: string; folderName?: string }> = ({
     const [search, setSearch] = useState('');
     const [showModal, setShowModal] = useState(false);
     const [defaultModalStatus, setDefaultModalStatus] = useState<TaskStatus>('TODO');
+    const [parentTaskId, setParentTaskId] = useState<string | undefined>();
+    const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
+
+    const toggleExpand = (id: string) => {
+        setExpandedTasks(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
 
     const filtered = tasks.filter(t =>
         t.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -314,17 +362,21 @@ export const TaskPanel: React.FC<{ folderId: string; folderName?: string }> = ({
         startDate: string;
         endDate: string;
         progress: number;
+        assigneeIds: string[];
     }) => {
         await createTask({
             title: data.title,
             description: data.description,
             status: data.status,
             folderId,
+            parentTaskId,
             startDate: data.startDate || undefined,
             endDate: data.endDate || undefined,
             progress: data.progress,
+            assigneeIds: data.assigneeIds,
         });
         setShowModal(false);
+        setParentTaskId(undefined);
     };
 
     const handleDelete = async (taskId: string) => {
@@ -334,7 +386,14 @@ export const TaskPanel: React.FC<{ folderId: string; folderName?: string }> = ({
     };
 
     const openModalForStatus = (status: TaskStatus) => {
+        setParentTaskId(undefined);
         setDefaultModalStatus(status);
+        setShowModal(true);
+    };
+
+    const openModalForSubTask = (parentTask: Task) => {
+        setParentTaskId(parentTask.id);
+        setDefaultModalStatus(parentTask.status);
         setShowModal(true);
     };
 
@@ -418,22 +477,47 @@ export const TaskPanel: React.FC<{ folderId: string; folderName?: string }> = ({
                                             <th className="w-32 text-center font-normal border-l border-gray-100">Son tarih</th>
                                             <th className="w-32 text-center font-normal border-l border-gray-100">Öncelik</th>
                                             <th className="w-40 text-center font-normal border-l border-gray-100">Zaman Çizel...</th>
-                                            <th className="w-44 text-left px-3 font-normal border-l border-gray-100">Son Güncelleme</th>
+                                            <th className="w-44 text-center font-normal border-l border-gray-100">İlerleme %</th>
                                             <th className="w-10 text-center border-l border-gray-100">+</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {group.tasks.map((task) => (
-                                            <TaskRow
-                                                key={task.id}
-                                                task={task}
-                                                onClick={() => setSelectedTask(task)}
-                                                onStatusChange={(s) => updateTaskStatus(task.id, s)}
-                                                onPriorityChange={(p) => updateTaskPriority(task.id, p)}
-                                                onAssigneeToggle={(uid) => toggleAssignee(task.id, uid)}
-                                                onDelete={() => handleDelete(task.id)}
-                                            />
-                                        ))}
+                                        {group.tasks.filter(t => !t.parentTaskId).map((task) => {
+                                            // Subtasks can be in any status group, so we look in the main filtered list
+                                            const subTasks = filtered.filter(st => st.parentTaskId === task.id);
+                                            const isExpanded = expandedTasks.has(task.id);
+
+                                            return (
+                                                <React.Fragment key={task.id}>
+                                                    <TaskRow
+                                                        task={task}
+                                                        onClick={() => setSelectedTask(task)}
+                                                        onStatusChange={(s) => updateTaskStatus(task.id, s)}
+                                                        onPriorityChange={(p) => updateTaskPriority(task.id, p)}
+                                                        onAssigneeToggle={(uid) => toggleAssignee(task.id, uid)}
+                                                        onDelete={() => handleDelete(task.id)}
+                                                        onAddSubTask={() => openModalForSubTask(task)}
+                                                        hasSubTasks={subTasks.length > 0}
+                                                        isExpanded={isExpanded}
+                                                        onToggleExpand={() => toggleExpand(task.id)}
+                                                    />
+                                                    {/* Alt Görevler */}
+                                                    {isExpanded && subTasks.map(subTask => (
+                                                        <TaskRow
+                                                            key={subTask.id}
+                                                            task={subTask}
+                                                            isSubTask
+                                                            onClick={() => setSelectedTask(subTask)}
+                                                            onStatusChange={(s) => updateTaskStatus(subTask.id, s)}
+                                                            onPriorityChange={(p) => updateTaskPriority(subTask.id, p)}
+                                                            onAssigneeToggle={(uid) => toggleAssignee(subTask.id, uid)}
+                                                            onDelete={() => handleDelete(subTask.id)}
+                                                            onAddSubTask={() => { }}
+                                                        />
+                                                    ))}
+                                                </React.Fragment>
+                                            );
+                                        })}
                                         {/* + Ekle Row */}
                                         <tr className="h-9 border-b border-[#e6e9ef] hover:bg-gray-50/50 cursor-pointer group/add">
                                             <td className="w-10 pl-2 pr-0"></td>

@@ -52,7 +52,7 @@ const FolderItem: React.FC<{ folder: Folder; onSelect: (id: string) => void; sel
                     flex items-center group py-1.5 px-2 rounded-md cursor-pointer transition-all mx-1 mb-0.5
                     ${isSelected ? 'text-primary' : 'text-gray-600 hover:bg-gray-100'}
                 `}
-                style={{ paddingLeft: `${depth * 16 + 12}px` }}
+                style={{ paddingLeft: `${depth * 10 + 6}px` }}
                 onClick={() => onSelect(folder.id)}
             >
                 <button
@@ -70,16 +70,23 @@ const FolderItem: React.FC<{ folder: Folder; onSelect: (id: string) => void; sel
 
                 <div className={`w-1.5 h-1.5 rounded-full mr-3 ${isSelected ? 'bg-primary' : 'bg-transparent group-hover:bg-gray-300'} transition-all`} />
 
-                <span className={`flex-1 truncate text-sm ${isSelected ? 'font-bold' : 'font-medium'}`}>
+                <span className={`flex-1 text-sm ${depth === 0 ? 'font-extrabold' : 'font-semibold'} ${isSelected ? 'text-primary' : 'text-gray-700'}`}>
                     {folder.name}
                 </span>
 
                 <div className={`flex items-center gap-1 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                    <button onClick={handleAddSubfolder} className="p-1 hover:bg-black/5 rounded text-gray-400 hover:text-primary">
-                        <Plus size={14} />
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onSelect(folder.id); /* This selects the folder, showing the panel where they can add tasks */ }}
+                        className="p-1 hover:bg-black/5 rounded text-gray-400 hover:text-green-500"
+                        title="Görev Ekle"
+                    >
+                        <Plus size={14} className="scale-110" />
+                    </button>
+                    <button onClick={handleAddSubfolder} className="p-1 hover:bg-black/5 rounded text-gray-400 hover:text-primary" title="Alt Klasör Ekle">
+                        <Layout size={12} />
                     </button>
                     {!folder.parentId && (
-                        <button onClick={handleDelete} className="p-1 hover:bg-black/5 rounded text-gray-400 hover:text-danger">
+                        <button onClick={handleDelete} className="p-1 hover:bg-black/5 rounded text-gray-400 hover:text-danger" title="Sil">
                             <Trash2 size={14} />
                         </button>
                     )}

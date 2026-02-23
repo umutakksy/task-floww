@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles } from 'lucide-react';
 import type { TaskStatus } from '../types';
+import { useTaskStore } from '../store/useTaskStore';
 
 interface CreateTaskModalProps {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface CreateTaskModalProps {
         startDate: string;
         endDate: string;
         progress: number;
+        assigneeIds: string[];
     }) => void;
     defaultStatus?: TaskStatus;
 }
@@ -29,19 +31,35 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     onSubmit,
     defaultStatus = 'TODO',
 }) => {
+    const { users } = useTaskStore();
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [status, setStatus] = useState<TaskStatus>(defaultStatus);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [progress, setProgress] = useState(0);
+    const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
 
     if (!isOpen) return null;
+
+    const toggleAssignee = (userId: string) => {
+        setSelectedAssignees(prev =>
+            prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+        );
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return;
-        onSubmit({ title: title.trim(), description: description.trim(), status, startDate, endDate, progress });
+        onSubmit({
+            title: title.trim(),
+            description: description.trim(),
+            status,
+            startDate,
+            endDate,
+            progress,
+            assigneeIds: selectedAssignees
+        });
         // Reset
         setTitle('');
         setDescription('');
@@ -49,6 +67,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         setStartDate('');
         setEndDate('');
         setProgress(0);
+        setSelectedAssignees([]);
     };
 
     return (
@@ -61,7 +80,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
             {/* Modal */}
             <div
-                className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-100 mx-4 overflow-hidden"
+                className="relative w-full max-w-lg bg-white rounded-xl shadow-2xl border border-gray-100 mx-4 overflow-hidden max-h-[90vh] overflow-y-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -94,62 +113,27 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                         />
                     </div>
 
-                    {/* Description */}
+                    {/* Assignees */}
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1.5">Açıklama</label>
-                        <textarea
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Görev açıklaması (isteğe bağlı)..."
-                            rows={3}
-                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors resize-none"
-                        />
-                    </div>
-
-                    {/* Status */}
-                    <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1.5">Durum / Aşama</label>
-                        <div className="flex gap-2">
-                            {STATUS_OPTIONS.map((opt) => (
+                        <label className="block text-xs font-bold text-gray-500 mb-1.5">Sorumlu Seç</label>
+                        <div className="flex flex-wrap gap-2 py-2">
+                            {users.map(u => (
                                 <button
-                                    key={opt.value}
+                                    key={u.id}
                                     type="button"
-                                    onClick={() => setStatus(opt.value)}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${status === opt.value
-                                            ? 'text-white shadow-sm'
-                                            : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                    onClick={() => toggleAssignee(u.id)}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${selectedAssignees.includes(u.id)
+                                        ? 'bg-primary border-primary text-white shadow-sm'
+                                        : 'bg-white border-gray-200 text-gray-600 hover:border-primary hover:text-primary'
                                         }`}
-                                    style={
-                                        status === opt.value
-                                            ? { backgroundColor: opt.color, borderColor: opt.color }
-                                            : undefined
-                                    }
                                 >
-                                    {opt.label}
+                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] ${selectedAssignees.includes(u.id) ? 'bg-white/20' : 'bg-gray-100'}`}>
+                                        {u.username[0].toUpperCase()}
+                                    </div>
+                                    {u.username}
                                 </button>
                             ))}
-                        </div>
-                    </div>
-
-                    {/* Dates */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1.5">Başlangıç Tarihi</label>
-                            <input
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 mb-1.5">Bitiş Tarihi</label>
-                            <input
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors"
-                            />
+                            {users.length === 0 && <span className="text-[10px] text-gray-400 italic">Kullanıcı bulunamadı</span>}
                         </div>
                     </div>
 
@@ -177,6 +161,65 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                                     width: `${progress}%`,
                                     background: progress < 30 ? '#ff3d57' : progress < 70 ? '#ffcb00' : '#00c875',
                                 }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Description */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1.5">Açıklama</label>
+                        <textarea
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                            placeholder="Görev açıklaması (isteğe bağlı)..."
+                            rows={3}
+                            className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors resize-none"
+                        />
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 mb-1.5">Durum / Aşama</label>
+                        <div className="flex gap-2">
+                            {STATUS_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setStatus(opt.value)}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-bold border-2 transition-all ${status === opt.value
+                                        ? 'text-white shadow-sm'
+                                        : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'
+                                        }`}
+                                    style={
+                                        status === opt.value
+                                            ? { backgroundColor: opt.color, borderColor: opt.color }
+                                            : undefined
+                                    }
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Dates */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1.5">Başlangıç</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 mb-1.5">Bitiş</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary focus:bg-white transition-colors"
                             />
                         </div>
                     </div>
